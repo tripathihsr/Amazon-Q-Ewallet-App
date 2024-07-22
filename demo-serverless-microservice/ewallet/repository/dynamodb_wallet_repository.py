@@ -25,14 +25,14 @@ class DynamoDbWalletRepository(BaseRepository):
         response = self.dynamodb_client.scan(
             TableName=self.wallet_table_name
         )
-
+        
         items = response.get('Items')
-
+        
         if items is None:
             return []
-
+        
         return [Wallet(item.get('name').get('S')) for item in items]
-
+    
 
     def save(self, wallet: Wallet) -> str:
         """
@@ -47,11 +47,11 @@ class DynamoDbWalletRepository(BaseRepository):
         self.dynamodb_client.put_item(
             TableName=self.wallet_table_name,
             Item={
-                'id': {'S': wallet.id},
+                'id': {'S': str(wallet.id)},
                 'name': {'S': wallet.name}
             }
         )
-
+        
         return wallet.id
     
     def find(self, id: str) -> Wallet:
@@ -62,19 +62,32 @@ class DynamoDbWalletRepository(BaseRepository):
         response = self.dynamodb_client.get_item(
             TableName=self.wallet_table_name,
         Key={
-      'id': {'S': id}
+                'id': {'S': id}
     }
   )
 
         item = response.get('Item')
 
         if not item:
-            return None
+            raise ValueError(f"Wallet with id {id} not found")
 
-        wallet = Wallet(item.get('name').get('S')) 
+        wallet = Wallet(item.get('name').get('S'), id=item.get('id').get('S'))
 
         return wallet
 
 
 
     
+    def update(self, wallet: Wallet) -> None:
+        """
+        Updates an existing wallet in the DynamoDB database.
+
+        :param wallet: The wallet to update.
+        """
+        self.dynamodb_client.put_item(
+            TableName=self.wallet_table_name,
+            Item={
+                'id': {'S': str(wallet.id)},
+                'name': {'S': wallet.name}
+            }
+        )

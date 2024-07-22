@@ -18,8 +18,9 @@ def get_wallet_repository(dynamodb_client, table_name) -> BaseRepository:
     return DynamoDbWalletRepository(dynamodb_client, table_name)
 
 def get_transaction_repository(dynamodb_client, table_name) -> TransactionRepository:
-    return DynamoDbTransactionRepository(dynamodb_client, table_name)
-
+    wallet_index_name = os.getenv('TRANSACTIONS_WALLET_INDEX')
+    return DynamoDbTransactionRepository(dynamodb_client, table_name, wallet_index_name)
+    
 def find_wallet(dynamodb_client, wallet_table_name, id) -> Wallet:
     wallet_repository = get_wallet_repository(dynamodb_client, wallet_table_name)
     return wallet_repository.find(id)
@@ -144,7 +145,7 @@ def lambda_handler(event, context):
                 'body': json.dumps({'message': error})
             }
         
-        save_transaction(dynamodb, wallet_table_name, withdrawal_transaction)
+        save_transaction(dynamodb, transactions_table_name, withdrawal_transaction)
 
         send_withdrawal_order_to_sns(withdrawal_sns_topic, payload['iban'], payload['currency'], payload['amount'])
 
@@ -163,3 +164,14 @@ def lambda_handler(event, context):
             'statusCode': 500,
             'body': {'message': error}
         }
+
+    def update_wallet_balance(wallet, transaction):
+        if transaction.type == TransactionType.TOP_UP:
+            wallet.balance[transaction.currency] = wallet.balance.get(transaction.currency, 0) + transaction.amount
+        elif transaction.type == TransactionType.WITHDRAWAL:
+            wallet.balance[transaction.currency] = wallet.balance.get(transaction.currency, 0) - transaction.amount
+        else:
+            raise ValueError(f"Unsupported transaction type: {transaction.type}")
+        
+        wallet_repository = get_wallet_repository(boto3.client('dynamodb'), os.getenv('WALLETS_TABLE'))
+        wallet_repository.update(wallet)
