@@ -1,0 +1,16 @@
+Name: dynamo-db-query-batching
+SchemaVersion: "1.0"
+Actions:
+  dynamo-db-query-batching:
+    Identifier: aws/dynamo-db-query-batching@v1.0.1
+    Environment:
+      Name: dev
+      Connections:
+        - Name: dev-connection
+          Role: dynamo-db-query-batching-role
+    Inputs:
+      Sources:
+        - WorkflowSource
+    Configuration:
+      AWSRegion: us-east-1
+      DynamoDBTableName: my-table
