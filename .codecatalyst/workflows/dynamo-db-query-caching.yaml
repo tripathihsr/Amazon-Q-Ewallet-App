@@ -1,0 +1,43 @@
+SchemaVersion: 1.0
+Triggers:
+  - Type: PUSH
+Actions:
+  CacheSetup:
+    Identifier: aws/build@v1
+    Inputs:
+      Sources:
+        - WorkflowSource
+    Configuration:
+      Steps:
+        - RunCommand:
+            - aws cloudformation deploy --stack-name DynamoDBQueryCacheStack --template-file infrastructure/cache-setup.yaml --parameter-overrides CacheType=ElastiCache
+  CacheQueryHandler:
+    Identifier: aws/lambda-invoke@v1
+    Inputs:
+      Artifacts:
+        - Name: CacheSetup
+    Environment:
+      Name: dev-environment
+      Connections:
+        - Name: codecatalyst-account-connection
+          Role: dynamo-db-query-cache-role
+    Configuration:
+      Function:
+        Name: DynamoDBQueryCacheHandler
+        Payload: '{"query": "SELECT * FROM my_table WHERE id = ''123''"}'
+      AWSRegion: us-east-1
+  CacheInvalidator:
+    Identifier: aws/lambda-invoke@v1
+    Inputs:
+      Artifacts:
+        - Name: CacheSetup
+    Environment:
+      Name: dev-environment
+      Connections:
+        - Name: codecatalyst-account-connection
+          Role: dynamo-db-query-cache-role
+    Configuration:
+      Function:
+        Name: DynamoDBQueryCacheInvalidator
+        Payload: '{"table": "my_table", "key": "123"}'
+      AWSRegion: us-east-1
