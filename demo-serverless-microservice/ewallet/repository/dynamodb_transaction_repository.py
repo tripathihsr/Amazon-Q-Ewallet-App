@@ -14,7 +14,7 @@ class DynamoDbTransactionRepository(TransactionRepository):
     """
     def __init__(self, dynamodb_client: boto3.client, table_name: str, wallet_index_name: str):
         self.dynamodb_client = dynamodb_client
-        self.table_name = table_name
+        self.transactions_table_name = table_name
         self.wallet_index_name = wallet_index_name
 
     def save(self, transaction: Transaction) -> str:
@@ -28,10 +28,10 @@ class DynamoDbTransactionRepository(TransactionRepository):
         transaction.id = str(uuid.uuid4())
 
         self.dynamodb_client.put_item(
-            TableName=self.table_name,
+            TableName=self.transactions_table_name,
             Item={
                 'id': {'S': transaction.id},
-                'wallet_id': {'N': str(transaction.wallet.id)},
+                'wallet_id': {'S': str(transaction.wallet.id)},
                 'amount': {'N': str(transaction.amount)},
                 'currency': {'S': transaction.currency},
                 'type': {'S': transaction.type.name},
@@ -51,7 +51,7 @@ class DynamoDbTransactionRepository(TransactionRepository):
         :rtype: Any
         """
         response = self.dynamodb_client.get_item(
-            TableName=self.table_name,
+            TableName=self.transactions_table_name,
             Key={'id': {'S': transaction_id}}
         )
 
@@ -78,12 +78,12 @@ class DynamoDbTransactionRepository(TransactionRepository):
         :rtype: list[Transaction]
         """
         response = self.dynamodb_client.query(
-            TableName=self.table_name,
+            TableName=self.transactions_table_name,
             IndexName=self.wallet_index_name,
             KeyConditionExpression='wallet_id = :wallet_id',
-            ExpressionAttributeValues={':wallet_id': {'N': str(wallet.id)}}
+            ExpressionAttributeValues={':wallet_id': {'S': str(wallet.id)}}
         )
-
+        
         transactions = []
         for item in response['Items']:
             transaction =Transaction(
@@ -96,4 +96,18 @@ class DynamoDbTransactionRepository(TransactionRepository):
             transaction.created_at = datetime.fromisoformat(item['created_at']['S'])
             transactions.append(transaction)
 
+        while 'LastEvaluatedKey' in response:
+            response = self.dynamodb_client.query(
+                TableName=self.transactions_table_name,
+                IndexName=self.wallet_index_name,
+                KeyConditionExpression='wallet_id = :wallet_id',
+                ExpressionAttributeValues={':wallet_id': {'S': str(wallet.id)}},
+                ExclusiveStartKey=response['LastEvaluatedKey']
+            )
+            for item in response['Items']:
+                transactions.append(self._create_transaction_from_item(item, wallet))
+
         return transactions
+
+    def _create_transaction_from_item(self, item, wallet):
+        # Implementation omitted for brevity

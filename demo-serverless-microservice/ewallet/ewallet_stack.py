@@ -31,7 +31,20 @@ class EWalletStack(Stack):
             partition_key=dynamodb.Attribute(
                 name='id',
                 type=dynamodb.AttributeType.STRING
-            )
+            ),
+            sort_key=dynamodb.Attribute(
+                name='created_at',
+                type=dynamodb.AttributeType.STRING
+            ),
+            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST
+        )
+        transactions_table.add_global_secondary_index(
+            index_name='wallet_id_index',
+            partition_key=dynamodb.Attribute(
+                name='wallet_id',
+                type=dynamodb.AttributeType.STRING
+            ),
+            projection_type=dynamodb.ProjectionType.ALL
         )
 
         create_wallet_function = lambda_.Function(self, 'CreateWalletFunction',
@@ -52,7 +65,8 @@ class EWalletStack(Stack):
             handler='withdraw.lambda_handler',
             environment={
                 "WALLETS_TABLE": wallets_table.table_name,
-                "TRANSACTIONS_TABLE": transactions_table.table_name
+                "TRANSACTIONS_TABLE": transactions_table.table_name,
+                "TRANSACTIONS_WALLET_INDEX": transactions_table.global_secondary_indexes[0].index_name
             },
             tracing=lambda_.Tracing.ACTIVE
         )
