@@ -1,0 +1,9 @@
+Name: Workflow_1239
+SchemaVersion: "1.0"
+
+# Optional - Set automatic triggers.
+Triggers:
+  - Type: PUSH
+    Branches:
+      - apply-blueprint-blueprint-builder-60910
+Actions:
