@@ -1,0 +1,11 @@
+Name: Workflow_e2ea
+SchemaVersion: "1.0"
+
+# Optional - Set automatic triggers.
+Triggers:
+  - Type: Push
+    Branches:
+      - apply-blueprint-blueprint-builder-60910
+
+# Required - Define action configurations.
+Actions:
